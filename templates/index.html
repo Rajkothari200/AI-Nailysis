@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Nailysis - Real-Time Multi-Nail Pathological Diagnostic Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- Background glows -->
+    <div class="glow-bg-1"></div>
+    <div class="glow-bg-2"></div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="logo">
+                <i class="fa-solid fa-hand-sparkles logo-icon"></i>
+                <span class="logo-text">AI <span class="accent-text">Nailysis</span></span>
+            </div>
+            <div class="header-tagline">Clinical-Grade Pathological Nail Diagnosis</div>
+        </header>
+
+        <!-- Main Dashboard Layout -->
+        <main class="dashboard-grid">
+            
+            <!-- Left Panel: Scanner & Controls -->
+            <section class="panel glass-panel" id="scanner-section">
+                <div class="panel-header">
+                    <h2><i class="fa-solid fa-expand-arrows-alt header-icon"></i> Nail Scanner</h2>
+                    <p class="panel-subtitle">Select input method to scan fingernails for abnormalities</p>
+                </div>
+
+                <!-- Input Tabs -->
+                <div class="tab-container">
+                    <button class="tab-btn active" id="tab-webcam" onclick="switchTab('webcam')">
+                        <i class="fa-solid fa-camera"></i> Live Camera (5-Nail Tracking)
+                    </button>
+                    <button class="tab-btn" id="tab-upload" onclick="switchTab('upload')">
+                        <i class="fa-solid fa-upload"></i> Upload Image
+                    </button>
+                </div>
+
+                <!-- Tab Contents -->
+                <div class="tab-content-wrapper">
+                    <!-- Webcam Tab -->
+                    <div class="tab-content active" id="content-webcam">
+                        <div class="camera-wrapper">
+                            <video id="webcam-feed" autoplay playsinline muted></video>
+                            <!-- Hand Guide Silhouette -->
+                            <div class="hand-silhouette" id="hand-silhouette">
+                                <svg viewBox="0 0 120 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M 20,130 C 20,100 15,85 15,75 C 15,68 8,62 10,55 C 12,48 20,48 25,55 C 30,62 32,70 35,70 C 37,70 35,35 37,25 C 39,15 45,15 47,25 C 49,35 48,60 51,60 C 54,60 52,20 55,10 C 58,0 64,0 67,10 C 70,20 68,60 71,60 C 74,60 73,25 76,15 C 79,5 85,5 87,15 C 89,25 87,65 90,65 C 93,65 93,40 96,35 C 99,30 105,30 107,35 C 109,40 105,75 105,85 C 105,95 100,110 100,130 Z" stroke="var(--accent-cyan)" stroke-width="2" stroke-linejoin="round" stroke-dasharray="5 5" />
+                                </svg>
+                                <div class="silhouette-label">Align Hand Here</div>
+                            </div>
+                            <canvas id="hands-canvas"></canvas>
+                            <canvas id="capture-canvas" style="display: none;"></canvas>
+                            <!-- Scanner HUD Overlay -->
+                            <div class="scanner-hud" id="scanner-hud">
+                                <div class="corner top-left"></div>
+                                <div class="corner top-right"></div>
+                                <div class="corner bottom-left"></div>
+                                <div class="corner bottom-right"></div>
+                                <div class="scan-laser" id="scan-laser-line"></div>
+                                <div class="scan-instructions" id="scan-instruction-text">Show 1 hand with 5 visible fingernails</div>
+                            </div>
+                            <!-- Auto-capture countdown overlay -->
+                            <div class="countdown-overlay" id="countdown-overlay" style="display: none;">
+                                <div class="countdown-text" id="countdown-number">3</div>
+                                <p>Hold still. Capturing 5 nails...</p>
+                            </div>
+                        </div>
+                        <div class="control-row">
+                            <button class="btn btn-primary" id="btn-start-camera">
+                                <i class="fa-solid fa-video"></i> Start Camera
+                            </button>
+                            <button class="btn btn-accent" id="btn-capture" disabled>
+                                <i class="fa-solid fa-circle-dot"></i> Capture & Analyze
+                            </button>
+                        </div>
+                        <div class="mobile-warning-note">
+                            <i class="fa-solid fa-circle-info"></i> Mobile Webcam: If blocked, please use an HTTPS tunnel (e.g. ngrok) or open Chrome Flags and enable insecure origins for your LAN IP.
+                        </div>
+                    </div>
+
+                    <!-- Upload Tab -->
+                    <div class="tab-content" id="content-upload">
+                        <div class="upload-dropzone" id="dropzone">
+                            <input type="file" id="file-input" accept="image/*" style="display: none;">
+                            <div class="dropzone-prompt" id="dropzone-prompt">
+                                <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+                                <h3>Drag & drop nail image</h3>
+                                <p>Supports JPG, JPEG, PNG (max 5MB)</p>
+                                <span class="btn btn-secondary">Browse Files</span>
+                            </div>
+                            <div class="preview-container" id="preview-container" style="display: none;">
+                                <img id="image-preview" src="" alt="Nail Preview">
+                                <button class="btn-clear-preview" id="btn-clear-preview" title="Remove image">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="control-row">
+                            <button class="btn btn-accent" id="btn-analyze-upload" disabled>
+                                <i class="fa-solid fa-microscope"></i> Run Analysis
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Diagnostics State Log -->
+                <div class="analysis-status-box" id="analysis-status-box" style="display: none;">
+                    <h3><i class="fa-solid fa-spinner fa-spin"></i> Neural Network Diagnostics</h3>
+                    <ul class="diagnostic-steps">
+                        <li id="step-polish" class="pending"><i class="fa-solid fa-clock"></i> Detecting Nail Paint & Art</li>
+                        <li id="step-binary" class="pending"><i class="fa-solid fa-clock"></i> Inspecting Pathological Anomalies</li>
+                        <li id="step-multiclass" class="pending"><i class="fa-solid fa-clock"></i> Classifying Disease Signatures</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Right Panel: Results & Reports -->
+            <section class="panel glass-panel" id="results-section">
+                <div class="panel-header">
+                    <h2><i class="fa-solid fa-square-poll-vertical header-icon"></i> Diagnostic Results</h2>
+                    <p class="panel-subtitle">AI analysis output, treatment recommendations, and precaution plans</p>
+                </div>
+
+                <!-- Empty State -->
+                <div class="results-empty-state" id="results-empty">
+                    <i class="fa-solid fa-heart-pulse heartbeat-icon"></i>
+                    <h3>Awaiting Nail Scan</h3>
+                    <p>Provide a clear photo or capture a live webcam image of your hand/nails to see diagnostics, prevention checklist, and treatment recommendations.</p>
+                </div>
+
+                <!-- Results Content -->
+                <div class="results-content" id="results-content" style="display: none;">
+                    
+                    <!-- Multi-Nail Select Tab Bar -->
+                    <div class="finger-tabs-wrapper" id="finger-tabs-wrapper" style="display: none;">
+                        <h3>Select Fingernail Result:</h3>
+                        <div class="finger-tabs" id="finger-tabs">
+                            <button class="finger-tab-btn" id="f-tab-0" onclick="selectFingerResult(0)">
+                                Thumb <span class="status-dot-sm bg-gray" id="f-dot-0"></span>
+                            </button>
+                            <button class="finger-tab-btn" id="f-tab-1" onclick="selectFingerResult(1)">
+                                Index <span class="status-dot-sm bg-gray" id="f-dot-1"></span>
+                            </button>
+                            <button class="finger-tab-btn" id="f-tab-2" onclick="selectFingerResult(2)">
+                                Middle <span class="status-dot-sm bg-gray" id="f-dot-2"></span>
+                            </button>
+                            <button class="finger-tab-btn" id="f-tab-3" onclick="selectFingerResult(3)">
+                                Ring <span class="status-dot-sm bg-gray" id="f-dot-3"></span>
+                            </button>
+                            <button class="finger-tab-btn" id="f-tab-4" onclick="selectFingerResult(4)">
+                                Pinky <span class="status-dot-sm bg-gray" id="f-dot-4"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Polish/Art Warning Alert -->
+                    <div class="alert alert-warning" id="polish-warning" style="display: none;">
+                        <div class="alert-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div class="alert-body">
+                            <h4>Nail Polish / Art Detected</h4>
+                            <p>Manicures and nail cosmetics mask underlying nail pathology. Results may be inaccurate. Remove polish for clinical accuracy.</p>
+                        </div>
+                    </div>
+
+                    <!-- Cropped/Uploaded Image Preview in Results -->
+                    <div class="result-image-preview-wrapper" id="result-image-preview-wrapper" style="display: none;">
+                        <img id="result-image-preview" src="" alt="Analyzed Nail Region">
+                    </div>
+
+                    <!-- Health Status Badge Card -->
+                    <div class="status-card" id="status-card">
+                        <div class="status-icon-glow" id="status-glow">
+                            <i id="status-icon" class="fa-solid fa-circle-check"></i>
+                        </div>
+                        <div class="status-info">
+                            <h3 id="result-status-title">Healthy Nails Detected</h3>
+                            <p id="result-status-meta">Confidence: 98.4%</p>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" id="btn-export-pdf" title="Export PDF Report">
+                            <i class="fa-solid fa-file-pdf"></i> Export
+                        </button>
+                    </div>
+
+                    <!-- Diagnosis Details Accordion -->
+                    <div class="accordion-container" id="diagnosis-details" style="display: none;">
+                        <div class="accordion-item active">
+                            <div class="accordion-trigger" onclick="toggleAccordion(this)">
+                                <span><i class="fa-solid fa-info-circle"></i> Disease Description</span>
+                                <i class="fa-solid fa-chevron-down arrow"></i>
+                            </div>
+                            <div class="accordion-content">
+                                <p id="result-description">Loading disease details...</p>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <div class="accordion-trigger" onclick="toggleAccordion(this)">
+                                <span><i class="fa-solid fa-shield-halved"></i> Precaution & Prevention Guidelines</span>
+                                <i class="fa-solid fa-chevron-down arrow"></i>
+                            </div>
+                            <div class="accordion-content">
+                                <p id="result-prevention">Loading prevention tips...</p>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <div class="accordion-trigger" onclick="toggleAccordion(this)">
+                                <span><i class="fa-solid fa-prescription-bottle-medical"></i> Treatment & Clinical Care Options</span>
+                                <i class="fa-solid fa-chevron-down arrow"></i>
+                            </div>
+                            <div class="accordion-content">
+                                <p id="result-treatment">Loading treatment guidelines...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Disease Confidences (Multi-class details) -->
+                    <div class="confidence-container" id="confidence-container" style="display: none;">
+                        <h3>Disease Distribution</h3>
+                        <div class="confidence-list" id="confidence-list">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Secondary section: Education & Care Planner -->
+        <section class="secondary-grid">
+            <!-- Educational Glossary -->
+            <div class="panel glass-panel" id="glossary-section">
+                <div class="panel-header">
+                    <h2><i class="fa-solid fa-book-medical"></i> Nail Pathology Glossary</h2>
+                    <p class="panel-subtitle">Learn about common nail disease signatures and prevention</p>
+                </div>
+                <div class="search-bar-wrapper">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" id="glossary-search" placeholder="Search diseases (e.g. melanoma, fungus)..." onkeyup="filterGlossary()">
+                </div>
+                <div class="glossary-grid" id="glossary-grid">
+                    <!-- Populated dynamically by app config -->
+                </div>
+            </div>
+
+            <!-- Treatment Care Planner -->
+            <div class="panel glass-panel" id="planner-section">
+                <div class="panel-header">
+                    <h2><i class="fa-solid fa-notes-medical"></i> Daily Nail Care & Hygiene Tracker</h2>
+                    <p class="panel-subtitle">Maintain healthy, pathogen-free fingernails with this planner</p>
+                </div>
+                <div class="planner-checklist">
+                    <label class="todo-item">
+                        <input type="checkbox" checked>
+                        <span class="todo-checkbox"></span>
+                        <span class="todo-text">Keep nails dry and clean to prevent fungal growth</span>
+                    </label>
+                    <label class="todo-item">
+                        <input type="checkbox">
+                        <span class="todo-checkbox"></span>
+                        <span class="todo-text">Sanitize manicuring tools with rubbing alcohol</span>
+                    </label>
+                    <label class="todo-item">
+                        <input type="checkbox">
+                        <span class="todo-checkbox"></span>
+                        <span class="todo-text">Avoid aggressive scraping of cuticles</span>
+                    </label>
+                    <label class="todo-item">
+                        <input type="checkbox">
+                        <span class="todo-checkbox"></span>
+                        <span class="todo-text">Moisturize nails and cuticles nightly</span>
+                    </label>
+                    <label class="todo-item">
+                        <input type="checkbox">
+                        <span class="todo-checkbox"></span>
+                        <span class="todo-text">Inspect nails weekly for dark streaks or color changes</span>
+                    </label>
+                </div>
+                <div class="planner-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="resetPlanner()">Reset Checklist</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Live Chatbot Assistant -->
+        <div class="chat-widget" id="chat-widget">
+            <button class="chat-trigger" id="chat-trigger" onclick="toggleChat()">
+                <i class="fa-solid fa-comment-medical"></i>
+                <span class="chat-badge" id="chat-badge">1</span>
+            </button>
+            <div class="chat-window glass-panel" id="chat-window">
+                <div class="chat-header">
+                    <div class="chat-avatar">
+                        <i class="fa-solid fa-user-doctor"></i>
+                    </div>
+                    <div class="chat-header-info">
+                        <h4>Nail Care Assistant</h4>
+                        <p class="chat-status"><span class="status-dot"></span> Online</p>
+                    </div>
+                    <button class="chat-close" onclick="toggleChat()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message incoming">
+                        Hi! I am your AI Nail Care Assistant. Scan your nails or upload a photo, and I can answer questions about treatment, precautions, or standard nail care tips. Ask me anything!
+                    </div>
+                </div>
+                <div class="chat-input-row">
+                    <input type="text" id="chat-input" placeholder="Type your query here..." onkeypress="handleChatKey(event)">
+                    <button class="chat-send" onclick="sendChatMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="main-footer">
+            <p>&copy; 2026 AI Nailysis Diagnostics. All rights reserved. Disclaimer: AI Nailysis is an educational and screening assistant, not a clinical replacement for professional dermatological consultation.</p>
+        </footer>
+    </div>
+
+    <!-- MediaPipe Hands & Camera CDNs -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <!-- html2pdf Library for PDF exports -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

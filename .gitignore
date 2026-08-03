@@ -1,0 +1,24 @@
+# Virtual Environment
+nailenv/
+env/
+venv/
+
+# Pycache / compiled files
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Datasets
+**/train/
+**/val/
+**/test/
+
+# Local/IDE configs
+.gemini/
+.idea/
+.vscode/
+
+# Keys & Certificates (security)
+*.pem
+*.key
