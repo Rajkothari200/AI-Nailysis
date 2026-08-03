@@ -22,3 +22,12 @@ venv/
 # Keys & Certificates (security)
 *.pem
 *.key
+
+# Test Images
+*.png
+*.jpg
+*.jpeg
+
+# Evaluation and Explainability scripts
+*evaluate*
+*occlusion*
