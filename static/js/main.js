@@ -880,7 +880,15 @@ function renderResults(data) {
     const detailsAccordion = document.getElementById('diagnosis-details');
     const confidenceContainer = document.getElementById('confidence-container');
     
-    if (data.healthy) {
+    if (data.polish_detected) {
+        statusGlow.className = 'status-icon-glow status-glow-warning';
+        statusIcon.className = 'fa-solid fa-paintbrush';
+        statusTitle.textContent = data.finger ? `${data.finger}: Polish / Fake Nails` : 'Nail Polish / Fake Nails Detected';
+        statusMeta.textContent = `Nail bed obscured by paint or artificial nails (${data.polish_confidence}% confidence). Remove cosmetics for clinical scan.`;
+        
+        detailsAccordion.style.display = 'none';
+        confidenceContainer.style.display = 'none';
+    } else if (data.healthy) {
         statusGlow.className = 'status-icon-glow status-glow-healthy';
         statusIcon.className = 'fa-solid fa-shield-halved';
         statusTitle.textContent = data.finger ? `${data.finger}: Healthy` : 'Healthy Nails';

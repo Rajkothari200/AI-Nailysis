@@ -790,6 +790,13 @@ body {
     box-shadow: 0 0 15px rgba(255, 8, 68, 0.2);
 }
 
+.status-glow-warning {
+    background: rgba(245, 175, 25, 0.1);
+    border: 1px solid rgba(245, 175, 25, 0.3);
+    color: var(--accent-gold);
+    box-shadow: 0 0 15px rgba(245, 175, 25, 0.2);
+}
+
 .status-info {
     flex: 1;
 }
