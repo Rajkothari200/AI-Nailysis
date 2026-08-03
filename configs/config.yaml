@@ -1,0 +1,167 @@
+# ==============================================================================
+# AI NAILYSIS V2: MASTER CONFIGURATION FILE (IEEE WACV SUBMISSION ARCHITECTURE)
+# ==============================================================================
+
+system:
+  name: "AI-Nailysis-V2"
+  version: "2.0.0"
+  seed: 42
+  device: "cuda"          # "cuda" or "cpu"
+  mixed_precision: true
+
+paths:
+  weights_dir: "weights"
+  results_dir: "results"
+  experiments_dir: "experiments"
+  heatmaps_dir: "results/heatmaps"
+  plots_dir: "results/plots"
+  legacy_stage1_weights: "Stage1/stage1_best_weights.h5"
+  legacy_stage2_weights: "Stage2/stage2_best_weights.h5"
+  legacy_polish_weights: "Stage_Polish/polish_detector_weights.h5"
+
+# ------------------------------------------------------------------------------
+# 1. IMAGE QUALITY ASSESSMENT (IQA)
+# ------------------------------------------------------------------------------
+iqa:
+  enabled: true
+  blur_threshold: 100.0         # Laplacian variance threshold
+  light_min: 40.0              # Min acceptable mean brightness (0-255)
+  light_max: 220.0             # Max acceptable mean brightness (0-255)
+  overexposure_ratio: 0.15     # Max ratio of pixels with intensity > 245
+  reflection_threshold: 0.10   # Max ratio of specular highlights in HSV space
+  min_nail_area_ratio: 0.05    # Min nail bounding box area vs total image
+  composite_pass_threshold: 0.60
+
+# ------------------------------------------------------------------------------
+# 2. NAIL SEGMENTATION
+# ------------------------------------------------------------------------------
+segmentation:
+  enabled: true
+  model_type: "unet"           # "unet", "yolo11", "sam2"
+  input_size: [256, 256]
+  in_channels: 3
+  out_channels: 1
+  confidence_threshold: 0.50
+  padding_margin: 0.15         # Bounding box expansion ratio
+
+# ------------------------------------------------------------------------------
+# 3. ILLUMINATION & COLOR NORMALIZATION
+# ------------------------------------------------------------------------------
+color_normalization:
+  enabled: true
+  default_method: "clahe"      # Options: "clahe", "gray_world", "white_balance", "gamma", "equalize", "none"
+  clahe:
+    clip_limit: 2.0
+    tile_grid_size: [8, 8]
+  gamma:
+    gamma_value: 1.2
+  white_balance:
+    minkowski_p: 6
+
+# ------------------------------------------------------------------------------
+# 4. DATA AUGMENTATION (ALBUMENTATIONS)
+# ------------------------------------------------------------------------------
+augmentation:
+  image_size: [224, 224]
+  random_rotate_deg: 30
+  brightness_limit: 0.2
+  contrast_limit: 0.2
+  hue_shift_limit: 10
+  sat_shift_limit: 15
+  val_shift_limit: 10
+  elastic_alpha: 1.0
+  grid_distortion_num_steps: 5
+  coarse_dropout_max_holes: 8
+  coarse_dropout_max_height: 16
+  coarse_dropout_max_width: 16
+  cutmix_prob: 0.3
+  mixup_prob: 0.3
+  mixup_alpha: 0.4
+
+# ------------------------------------------------------------------------------
+# 5. HYBRID BACKBONE ARCHITECTURE
+# ------------------------------------------------------------------------------
+backbone:
+  model_name: "convnext"       # Options: "convnext", "efficientnetv2", "swin", "mobilevit", "vit"
+  pretrained: true
+  feature_dim: 512
+  drop_rate: 0.3
+  timm_names:
+    convnext: "convnext_small"
+    efficientnetv2: "tf_efficientnetv2_s"
+    swin: "swin_tiny_patch4_window7_224"
+    mobilevit: "mobilevit_s"
+    vit: "vit_base_patch16_224"
+
+# ------------------------------------------------------------------------------
+# 6. ATTENTION MODULE
+# ------------------------------------------------------------------------------
+attention:
+  enabled: true
+  type: "cbam"                  # Options: "cbam", "se", "coord", "self_attention", "none"
+  reduction_ratio: 16
+  num_heads: 4                 # For self_attention
+
+# ------------------------------------------------------------------------------
+# 7. MULTI-TASK PREDICTION HEADS
+# ------------------------------------------------------------------------------
+multi_task:
+  num_pathology_classes: 7     # Clubbing, Cyanosis, Melanoma, Onychogryphosis, Onychomycosis, Psoriasis, Healthy
+  pathology_classes:
+    - "clubbing"
+    - "cyanosis"
+    - "melanoma"
+    - "onychogryphosis"
+    - "onychomycosis"
+    - "psoriasis"
+    - "healthy"
+  color_abnormalities: 3       # Normal, Discolored, Melanonychia/Dark Streak
+  surface_dystrophies: 3       # Smooth, Pitted/Ridged, Thickened
+  loss_weights:
+    pathology: 1.0
+    color: 0.5
+    surface: 0.5
+    polish: 0.8
+    quality: 0.3
+
+# ------------------------------------------------------------------------------
+# 8. EXPLAINABLE AI (XAI)
+# ------------------------------------------------------------------------------
+xai:
+  enabled: true
+  default_method: "gradcam_pp" # Options: "gradcam", "gradcam_pp", "eigencam"
+  save_heatmaps: true
+  colormap: "COLORMAP_JET"
+  alpha_overlay: 0.5
+
+# ------------------------------------------------------------------------------
+# 9. CONFIDENCE ESTIMATION & UNCERTAINTY
+# ------------------------------------------------------------------------------
+confidence:
+  mc_dropout_samples: 20
+  temperature_scaling: 1.2
+  entropy_threshold: 0.70
+
+# ------------------------------------------------------------------------------
+# 10. TRAINING HYPERPARAMETERS
+# ------------------------------------------------------------------------------
+training:
+  batch_size: 16
+  num_workers: 4
+  epochs: 50
+  lr: 0.0001
+  weight_decay: 0.005
+  scheduler: "cosine"          # "cosine", "step", "reduce_on_plateau"
+  warmup_epochs: 5
+  early_stopping_patience: 10
+
+# ------------------------------------------------------------------------------
+# 11. MODEL EXPORT & PERFORMANCE
+# ------------------------------------------------------------------------------
+export:
+  onnx:
+    opset_version: 17
+    export_path: "weights/ai_nailysis_v2.onnx"
+  tensorrt:
+    precision: "fp16"
+    workspace_size_mb: 2048

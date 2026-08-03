@@ -31,3 +31,7 @@ venv/
 # Evaluation and Explainability scripts
 *evaluate*
 *occlusion*
+
+# Experiments and Results
+results/
+weights/
