@@ -79,7 +79,7 @@ async def get_database():
     """
     Returns the clinical disease information database.
     """
-    if adapter.v2_pipeline:
+    if hasattr(adapter, 'v2_pipeline') and adapter.v2_pipeline:
         return JSONResponse(content=adapter.v2_pipeline.disease_info_db)
     else:
         import ai_nailysis_pipeline as legacy_pipe

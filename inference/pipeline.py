@@ -167,7 +167,7 @@ class AINailysisV2Pipeline:
             "disease_probability": disease_prob_pct,
             "disease_confidence": float(round(pathology_probs[predicted_idx] * 100.0, 2)),
             "all_confidences": all_confidences,
-            "polish_detected": polish_prob >= 0.5,
+            "polish_detected": (polish_prob >= 0.70) if is_healthy else (polish_prob >= 0.85),
             "polish_confidence": float(round(polish_prob * 100.0, 2)),
             "info": info,
             "iqa": iqa_results,

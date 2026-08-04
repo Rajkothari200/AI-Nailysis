@@ -1,37 +1,81 @@
-# Virtual Environment
+# ==========================================
+# AI NAILYSIS V2 - GITIGNORE SPECIFICATION
+# ==========================================
+
+# 1. Virtual Environments
 nailenv/
 env/
 venv/
+ENV/
+env.bak/
+venv.bak/
 
-# Pycache / compiled files
+# 2. Pycache & Python Compiled Files
 **/__pycache__/
 *.pyc
 *.pyo
 *.pyd
+.pytest_cache/
 
-# Datasets
+# 3. Datasets & Raw Image Archives
 **/train/
 **/val/
 **/test/
+datasets/data/
+datasets/raw/
+datasets/processed/
+Stage1/train/
+Stage1/val/
+Stage1/test/
+Stage2/train/
+Stage2/val/
+Stage2/test/
+Stage_Polish/train/
+Stage_Polish/val/
+Stage_Polish/test/
 
-# Local/IDE configs
-.gemini/
-.idea/
-.vscode/
-
-# Keys & Certificates (security)
-*.pem
-*.key
-
-# Test Images
+# 4. Images & Media Files
 *.png
 *.jpg
 *.jpeg
+*.webp
+*.bmp
+*.gif
+*.tiff
+*.svg
 
-# Evaluation and Explainability scripts
-*evaluate*
-*occlusion*
-
-# Experiments and Results
-results/
+# 5. Heavy Model Weights & Binary Checkpoints
+*.h5
+*.keras
+*.pth
+*.pt
+*.onnx
+*.tflite
+*.bin
+*.engine
+*.ckpt
 weights/
+Stage1/*.h5
+Stage1/*.keras
+Stage2/*.h5
+Stage2/*.keras
+Stage_Polish/*.h5
+
+# 6. Local IDE / Editor / System Configurations
+.gemini/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+
+# 7. Security Credentials & Certificates
+*.pem
+*.key
+cert.pem
+key.pem
+
+# 8. Evaluation Heatmaps, Experiments & Logs
+results/
+experiments/run_*
+*.log

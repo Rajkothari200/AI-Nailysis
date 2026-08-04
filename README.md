@@ -3,10 +3,11 @@
 [![IEEE WACV Submission Standard](https://img.shields.io/badge/IEEE_WACV-Research_Grade-blue.svg)](https://wacv.thecvf.com/)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-green.svg)](https://www.python.org/)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
+[![TensorFlow 2.12+](https://img.shields.io/badge/TensorFlow-2.12+-orange.svg)](https://tensorflow.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.95+-009688.svg)](https://fastapi.tiangolo.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**AI Nailysis V2** is a modular, research-grade Computer Vision system designed for pathological nail screening, real-time hand posture tracking, automated segmentation, color normalization, multi-task deep learning, epistemic confidence quantification, and explainable AI heatmap generation.
+**AI Nailysis V2** is a modular, research-grade Computer Vision system designed for pathological nail screening, real-time hand posture tracking, automated segmentation, illumination & color normalization, multi-task deep learning, epistemic confidence quantification, and explainable AI heatmap generation.
 
 ---
 
@@ -35,6 +36,149 @@ graph TD
     
     Conf --> Final[10. Diagnostic Report & Clinical PDF]
     XAI --> Final
+```
+
+---
+
+## 🛠️ Step-by-Step Setup & Installation Guide
+
+### Prerequisites
+- **Python**: Version `3.10` or higher
+- **Git**: Installed and available in PATH
+- **Hardware**: CUDA-compatible GPU recommended for training/inference (CPU mode fully supported)
+
+---
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/Rajkothari200/AI-Nailysis.git
+cd AI-Nailysis
+```
+
+---
+
+### 2. Create and Activate Virtual Environment
+
+#### Windows (PowerShell / Command Prompt)
+```powershell
+# Create environment
+python -m venv nailenv
+
+# Activate environment (PowerShell)
+.\nailenv\Scripts\Activate.ps1
+
+# Activate environment (CMD)
+.\nailenv\Scripts\activate.bat
+```
+
+#### Linux / macOS
+```bash
+# Create environment
+python3 -m venv nailenv
+
+# Activate environment
+source nailenv/bin/activate
+```
+
+---
+
+### 3. Install Dependencies
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+---
+
+### 4. Dataset & Model Weights Setup
+
+> [!NOTE]
+> For repository cleanliness and standard research hygiene, raw image datasets, sample test images, and binary model weights (`.h5`, `.keras`, `.pt`) are excluded from Git tracking via `.gitignore`.
+
+To train models or run offline inference, structure your local directories as follows:
+
+```
+AI-Nailysis/
+├── Stage1/                       # Stage 1: Binary Pathology (Healthy vs Anomalous)
+│   ├── train/
+│   │   ├── disease/
+│   │   └── healthy/
+│   ├── val/
+│   └── test/
+├── Stage2/                       # Stage 2: 6-Class Pathology Classification
+│   ├── train/
+│   │   ├── clubbing/
+│   │   ├── cyanosis/
+│   │   ├── melanoma/
+│   │   ├── onychogryphosis/
+│   │   ├── onychomycosis/
+│   │   └── psoriasis/
+│   ├── val/
+│   └── test/
+├── Stage_Polish/                 # Stage 3: Cosmetic Polish / Nail Art Detection
+│   ├── train/
+│   │   ├── natural/
+│   │   └── polish/
+│   ├── val/
+│   └── test/
+└── weights/                      # Trained Weight Binaries Directory
+```
+
+---
+
+### 5. Start Application Server
+
+Launch the web diagnostic dashboard and FastAPI application backend:
+
+```bash
+# Direct python launcher
+python app.py
+
+# Or via Uvicorn server directly
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+* **Web Interface**: Open `http://localhost:8000` in your web browser.
+
+---
+
+### 6. REST API Endpoint Reference
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/` | Serves interactive web diagnostic interface |
+| `POST` | `/analyze` | Single image analysis (Pathology, Polish Detection, IQA & Confidence) |
+| `POST` | `/analyze_batch` | Batch multi-image diagnostic analysis |
+| `GET` | `/db` | Retrieves clinical database and disease medical profiles |
+| `POST` | `/chat` | AI Diagnostic assistant query endpoint |
+| `POST` | `/log` | System logger and pipeline event viewer |
+
+---
+
+### 7. Evaluation & Model Export
+
+#### Export Model to ONNX & TensorRT
+```python
+from models.multi_task import MultiTaskAINailysisModel
+from inference.export import ModelExporter
+import yaml
+
+with open("configs/config.yaml") as f:
+    config = yaml.safe_load(f)
+
+model = MultiTaskAINailysisModel(config)
+exporter = ModelExporter(model, config)
+exporter.export_onnx("weights/ai_nailysis_v2.onnx")
+exporter.generate_tensorrt_script("weights/ai_nailysis_v2.onnx")
+```
+
+#### Run Model Evaluation & Explainability Scripts
+```bash
+# Evaluate Stage 1 Model Performance
+python evaluate_stage1_full.py
+
+# Run Occlusion Heatmap & Explainable AI Engine
+python occlusion_explain.py
 ```
 
 ---
@@ -76,64 +220,8 @@ graph TD
 │   ├── main.py                   # Modular FastAPI Web Server
 │   └── api/
 │       └── routes.py             # FastAPI Endpoints (/analyze, /analyze_batch, /db, /chat, /log)
-├── weights/                      # Target Weights Directory
-├── results/                      # Evaluation Metrics, Confusion Matrices, Heatmaps
 ├── app.py                        # Entrypoint preserving 100% backward compatibility
 └── requirements.txt              # Production Dependency Specifications
-```
-
----
-
-## 🛠️ Module Overview
-
-1. **Image Quality Assessment (IQA)** (`utils/iqa.py`): Evaluates Laplacian blur variance, lighting histogram distribution, specular reflection ratio, and composite visual clarity scores.
-2. **Nail Segmentation** (`models/segmentation.py`): End-to-end PyTorch U-Net architecture predicting binary nail masks $M$ and cropped ROI bounding boxes $(x, y, w, h)$.
-3. **Color & Illumination Normalization** (`utils/color_norm.py`): Supports CLAHE in LAB space, Gray World illuminant correction, Shades-of-Gray White Balance, Gamma Correction, and Histogram Equalization.
-4. **Advanced Augmentations** (`datasets/augmentations.py`): Albumentations stochastic transforms + CutMix ($\tilde{x} = \text{mask} \odot x_i + (1 - \text{mask}) \odot x_j$) & MixUp convex combinations.
-5. **Configurable Hybrid Backbone** (`models/backbones.py`): Factory supporting ConvNeXt, EfficientNetV2, Swin Transformer, MobileViT, and Vision Transformer (ViT).
-6. **Attention Module** (`models/attention.py`): Injectable CBAM (Channel + Spatial), Squeeze-and-Excitation (SE), Coordinate Attention, and Multi-Head Self-Attention.
-7. **Multi-Task Neural Network** (`models/multi_task.py`): Single shared backbone with specialized task heads: Pathology (7 classes), Color Abnormality, Surface Dystrophy, Polish Detection, Quality Regression, and Uncertainty Estimation.
-8. **Explainable AI (XAI)** (`utils/xai.py`): Computes GradCAM, GradCAM++, and EigenCAM gradient activations and overlays JET colormaps.
-9. **Confidence Estimation** (`utils/confidence.py`): Test-time Monte Carlo (MC) Dropout sampling ($N=20$), Temperature Scaling logit calibration, and Shannon Entropy score calculation.
-10. **Evaluation Suite** (`evaluation/evaluator.py`, `evaluation/plots.py`): Computes Accuracy, Precision, Recall, Specificity ($\frac{TN}{TN+FP}$), Sensitivity, F1, One-vs-Rest ROC AUC, PR AP, and Expected Calibration Error (ECE).
-11. **Experiment Logger** (`experiments/logger.py`): Automatically creates run directories (`experiments/run_YYYYMMDD_HHMMSS/`) saving `config_snapshot.yaml`, `history.csv`, `final_metrics.json`, and best weights.
-12. **Master Configuration** (`configs/config.yaml`): Governs all parameters with zero hardcoded values in Python source code.
-13. **Code Quality**: Strict PEP8, full type hints, Google-style docstrings, and structured logging.
-14. **Performance & Export** (`inference/export.py`): Automatic Mixed Precision (`torch.cuda.amp.autocast`), ONNX dynamic axes export, and TensorRT compilation script generation.
-
----
-
-## 🚀 Execution & Quick Start
-
-### 1. Installation
-```bash
-# Clone Repository
-git clone https://github.com/Rajkothari200/AI-Nailysis.git
-cd AI-Nailysis
-
-# Install Dependencies
-pip install -r requirements.txt
-```
-
-### 2. Start Application Server
-```bash
-python app.py
-```
-* Access Web Dashboard: `http://localhost:8000`
-
-### 3. Model Export to ONNX
-```python
-from models.multi_task import MultiTaskAINailysisModel
-from inference.export import ModelExporter
-import yaml
-
-with open("configs/config.yaml") as f:
-    config = yaml.safe_load(f)
-
-model = MultiTaskAINailysisModel(config)
-exporter = ModelExporter(model, config)
-exporter.export_onnx("weights/ai_nailysis_v2.onnx")
-exporter.generate_tensorrt_script("weights/ai_nailysis_v2.onnx")
 ```
 
 ---
@@ -145,7 +233,7 @@ If you find **AI Nailysis V2** useful in your computer vision or clinical health
 ```bibtex
 @inproceedings{ainailysis2027wacv,
   title={AI Nailysis V2: Real-Time Multi-Task Pathological Nail Diagnosis with Visual Quality Assessment and Explainable Attention},
-  author={Anonymous Authors},
+  author={Raj Kothari},
   booktitle={IEEE/CVF Winter Conference on Applications of Computer Vision (WACV)},
   year={2027}
 }

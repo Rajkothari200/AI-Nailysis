@@ -2,9 +2,9 @@
 AI Nailysis V2 - Core Diagnostic Pipeline Engine
 =================================================
 Executes 3-Stage Diagnostic Pipeline:
-1. Multi-Spectral Nail Polish & Artificial Fake Nail Detection
-2. Stage-1 Binary Classification (Healthy vs Anomalous)
-3. Stage-2 Multi-Class Pathological Classification
+1. Stage-1 Binary Classification (Healthy vs Anomalous)
+2. Stage-2 Multi-Class Pathological Classification
+3. Precision Nail Polish & Artificial Fake Nail Detection
 """
 
 import tensorflow as tf
@@ -167,103 +167,111 @@ if not stage2_loaded and os.path.exists(stage2_weights_finetuned):
 # PIPELINE FUNCTION INTERFACE
 # ==============================
 
-def detect_polish_and_fake_nails(img_rgb, base_prob):
+def precision_detect_polish(img_rgb, mobilenet_prob, disease_detected, disease_confidence):
     """
-    Multi-Spectral Polish & Artificial Fake Nail Detector.
-    Combines MobileNet polish model score with LAB/HSV color space heuristics.
-    """
-    score = float(base_prob)
-    h, w = img_rgb.shape[:2]
+    Precision Polish & Artificial Fake Nail Detector.
+    Pathology Priority Rule: If a disease signature is present (disease_detected is True / healthy is False),
+    clinical disease diagnosis takes priority. Polish is marked False unless mobilenet_prob >= 0.85.
     
-    # Extract center 60% nail bed ROI
-    crop = img_rgb[int(h*0.2):int(h*0.8), int(w*0.2):int(w*0.8)]
-    if crop.size > 0:
-        crop_lab = cv2.cvtColor(crop, cv2.COLOR_RGB2LAB)
-        crop_hsv = cv2.cvtColor(crop, cv2.COLOR_RGB2HSV)
-        
-        mean_l = np.mean(crop_lab[:, :, 0])
-        mean_a = np.mean(crop_lab[:, :, 1])
-        mean_b = np.mean(crop_lab[:, :, 2])
-        
-        mean_s = np.mean(crop_hsv[:, :, 1])
-        mean_v = np.mean(crop_hsv[:, :, 2])
-        
-        std_l = np.std(crop_lab[:, :, 0])
-        std_a = np.std(crop_lab[:, :, 1])
-        std_b = np.std(crop_lab[:, :, 2])
+    For Healthy Nails (disease_detected is False):
+    Detects solid polish, manicures, and nail art using MobileNetV2 + HSV chromaticity/contrast analysis.
+    """
+    mobilenet_score = float(mobilenet_prob)
+    
+    # 1. PATHOLOGY PRIORITY RULE: Diseased nails default to False for polish
+    if disease_detected:
+        if mobilenet_score < 0.85:
+            return False, round((1.0 - mobilenet_score) * 100, 1)
+        else:
+            return True, round(mobilenet_score * 100, 1)
 
-        # A) Dark Matte Polish (Black, Dark Grey, Navy, Burgundy): L < 95 or V < 95
-        is_dark_matte = (mean_l < 95 or mean_v < 95)
-        
-        # B) Non-skin artificial synthetic colors (Blue, Green, Black, Neon, Purple, Intense Red):
-        # Natural skin/nail beds are pinkish (a* > 132). Non-pink artificial colors have a* < 129 or extreme saturation S > 95
-        is_synthetic_color = (mean_a < 128 or (mean_s > 95 and mean_a < 133))
-        
-        # C) Ultra-smooth artificial acrylic / polish texture (low color standard deviation)
-        is_synthetic_smooth = (std_l < 15.0 and std_a < 10.0 and std_b < 10.0)
+    # 2. HEALTHY NAIL COSMETIC DETECTION (Polish / Art / Manicures)
+    score = mobilenet_score
 
-        if is_dark_matte or is_synthetic_color:
-            score = max(score, 0.96)
-        elif is_synthetic_smooth and mean_s > 60:
-            score = max(score, 0.88)
+    # Compute HSV color metrics for nail art & vibrant polish on healthy nails
+    hsv = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2HSV)
+    s_chan = hsv[:, :, 1]
+    v_chan = hsv[:, :, 2]
 
-    detected = bool(score >= 0.5)
+    # High saturation ratio (vibrant red/burgundy/pink/blue polish)
+    high_sat_ratio = np.mean(s_chan > 100)
+    # High standard deviation in saturation & value (nail art patterns like checkered/hearts/french tip)
+    s_std = np.std(s_chan)
+    v_std = np.std(v_chan)
+
+    if high_sat_ratio > 0.08 or s_std > 45 or v_std > 50 or mobilenet_score >= 0.50:
+        score = max(score, 0.78 if (high_sat_ratio > 0.08 or s_std > 45 or v_std > 50) else score)
+
+    detected = bool(score >= 0.50)
     confidence = float(score if detected else 1.0 - score)
     return detected, round(confidence * 100, 1)
 
 
-def analyze_image_bgr(img_bgr):
+def analyze_image_bgr(img_bgr, norm_img=None, full_img_bgr=None):
     """
     Runs full 3-stage diagnostic pipeline on BGR image input.
+    Optionally accepts norm_img for illumination-normalized disease classification
+    and full_img_bgr for full-frame analysis.
     """
     img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
     
-    # 1. POLISH & ARTIFICIAL NAIL DETECTION
-    img_polish = cv2.resize(img_rgb, (POLISH_IMG_SIZE, POLISH_IMG_SIZE))
-    img_polish = np.expand_dims(img_polish, axis=0)
-    img_polish = preprocess_mobilenet(img_polish)
-    
-    mobilenet_prob = model_polish.predict(img_polish, verbose=0)[0][0]
-    polish_detected, polish_confidence = detect_polish_and_fake_nails(img_rgb, mobilenet_prob)
-    
-    # 2. STAGE 1 PREDICTION
-    img1 = cv2.resize(img_rgb, (STAGE1_IMG_SIZE, STAGE1_IMG_SIZE))
+    # Use norm_img for Stage 1/2 disease classification if provided
+    if norm_img is not None:
+        disease_img_rgb = cv2.cvtColor(norm_img, cv2.COLOR_BGR2RGB)
+    else:
+        disease_img_rgb = img_rgb
+
+    # 1. STAGE 1 PREDICTION (HEALTHY VS ANOMALOUS)
+    img1 = cv2.resize(disease_img_rgb, (STAGE1_IMG_SIZE, STAGE1_IMG_SIZE))
     img1 = np.expand_dims(img1, axis=0)
     img1 = preprocess_efficientnet(img1)
     
     healthy_prob = model_stage1.predict(img1, verbose=0)[0][0]
     healthy = bool(healthy_prob >= 0.5)
+    disease_prob_pct = round((1.0 - healthy_prob) * 100, 1)
     
-    results = {
-        "polish_detected": polish_detected,
-        "polish_confidence": polish_confidence,
-        "healthy": healthy,
-        "disease_probability": round((1.0 - healthy_prob) * 100, 1)
-    }
+    # 2. STAGE 2 PREDICTION (DISEASE CLASSIFICATION IF ANOMALOUS)
+    disease_name = "healthy"
+    disease_conf = round(healthy_prob * 100, 1)
+    info_dict = None
+    all_conf = None
     
-    # 3. STAGE 2 PREDICTION
     if not healthy:
-        img2 = cv2.resize(img_rgb, (STAGE2_IMG_SIZE, STAGE2_IMG_SIZE))
+        img2 = cv2.resize(disease_img_rgb, (STAGE2_IMG_SIZE, STAGE2_IMG_SIZE))
         img2 = np.expand_dims(img2, axis=0)
         img2 = preprocess_efficientnet(img2)
         
         pred = model_stage2.predict(img2, verbose=0)[0]
         idx = np.argmax(pred)
-        disease = classes[idx]
-        confidence = pred[idx]
-        
-        results["disease"] = disease
-        results["disease_confidence"] = round(float(confidence) * 100, 1)
-        results["info"] = disease_info[disease]
+        disease_name = classes[idx]
+        disease_conf = round(float(pred[idx]) * 100, 1)
+        info_dict = disease_info[disease_name]
         
         all_conf = {}
         for c, score in zip(classes, pred):
             all_conf[c] = float(score) * 100
-        results["all_confidences"] = all_conf
-    else:
-        results["disease"] = "healthy"
-        results["disease_confidence"] = round(healthy_prob * 100, 1)
-        results["info"] = None
-        results["all_confidences"] = None
-        
+
+    # 3. POLISH & ARTIFICIAL NAIL DETECTION
+    img_polish = cv2.resize(img_rgb, (POLISH_IMG_SIZE, POLISH_IMG_SIZE))
+    img_polish = np.expand_dims(img_polish, axis=0)
+    img_polish = preprocess_mobilenet(img_polish)
+    
+    mobilenet_prob = model_polish.predict(img_polish, verbose=0)[0][0]
+    
+    is_diseased = (not healthy)
+    polish_detected, polish_confidence = precision_detect_polish(
+        img_rgb, mobilenet_prob, disease_detected=is_diseased, disease_confidence=disease_conf
+    )
+    
+    results = {
+        "polish_detected": polish_detected,
+        "polish_confidence": polish_confidence,
+        "healthy": healthy,
+        "disease_probability": disease_prob_pct,
+        "disease": disease_name,
+        "disease_confidence": disease_conf,
+        "info": info_dict,
+        "all_confidences": all_conf
+    }
+    
     return results

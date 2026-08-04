@@ -46,12 +46,15 @@ def analyze_image_bgr(img_bgr: np.ndarray) -> Dict[str, Any]:
     
     # 2. Run Automated Segmentation & Bounding Box extraction
     seg_results = segmenter.process(img_bgr)
+    cropped_raw = seg_results["cropped_roi"]
     
-    # 3. Run Illumination & Color Normalization
-    norm_img = color_normalizer.normalize(seg_results["cropped_roi"])
+    # 3. Run Illumination & Color Normalization for Stage 1/2 disease classification
+    norm_img = color_normalizer.normalize(cropped_raw)
     
     # 4. Execute Original High-Accuracy TensorFlow Diagnostic Pipeline
-    res = legacy_pipe.analyze_image_bgr(norm_img)
+    # Pass cropped_raw for authentic polish detection and norm_img for disease classification.
+    # Also pass full img_bgr as full_img_bgr to ensure multi-spectral polish detection checks both full and cropped frames.
+    res = legacy_pipe.analyze_image_bgr(cropped_raw, norm_img=norm_img, full_img_bgr=img_bgr)
     
     # 5. Enrich with V2 research metrics
     res["iqa"] = iqa_results
